@@ -18,11 +18,21 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isGrounded;
 
+    // 🔋 Sprint Meter
+    public float maxStamina = 5f;
+    public float stamina;
+    public float staminaDrainRate = 1f;
+    public float staminaRegenRate = 1.5f;
+
+    private bool isSprinting;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+
         jumpsRemaining = maxJumps;
+        stamina = maxStamina;
     }
 
     void Update()
@@ -35,7 +45,22 @@ public class PlayerMovement : MonoBehaviour
             jumpsRemaining = maxJumps;
         }
 
-        // Jump input
+        // Sprint logic
+        bool sprintInput = Input.GetKey(KeyCode.LeftShift);
+        isSprinting = sprintInput && stamina > 0f && isGrounded;
+
+        if (isSprinting)
+        {
+            stamina -= staminaDrainRate * Time.deltaTime;
+        }
+        else
+        {
+            stamina += staminaRegenRate * Time.deltaTime;
+        }
+
+        stamina = Mathf.Clamp(stamina, 0f, maxStamina);
+
+        // Jump
         if (Input.GetButtonDown("Jump") && jumpsRemaining > 0)
         {
             Jump();
@@ -49,16 +74,15 @@ public class PlayerMovement : MonoBehaviour
 
     void Move()
     {
-        float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
+        float x = Input.GetAxisRaw("Horizontal");
+        float z = Input.GetAxisRaw("Vertical");
 
-        float speed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : moveSpeed;
+        float speed = isSprinting ? sprintSpeed : moveSpeed;
 
         Vector3 move = transform.right * x + transform.forward * z;
         Vector3 velocity = move * speed;
 
-        Vector3 currentVelocity = rb.velocity;
-        rb.velocity = new Vector3(velocity.x, currentVelocity.y, velocity.z);
+        rb.velocity = new Vector3(velocity.x, rb.velocity.y, velocity.z);
     }
 
     void Jump()
