@@ -4,39 +4,43 @@ public class MouseLook : MonoBehaviour
 {
     public Transform playerBody;
 
-    public float mouseSensitivity = 200f;
-    public float smoothTime = 0.05f; // lower = snappier, higher = smoother
+    public float sensitivity = 2.5f;   // raw sensitivity
+    public float smoothing = 8f;       // higher = smoother
 
     float xRotation = 0f;
 
-    float currentMouseX;
-    float currentMouseY;
-
-    float mouseXVelocity;
-    float mouseYVelocity;
+    Vector2 currentMouseDelta;
+    Vector2 currentMouseDeltaVelocity;
 
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
     }
 
-    void LateUpdate()
+    void Update()
     {
-        // Raw input
-        float targetMouseX = Input.GetAxisRaw("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float targetMouseY = Input.GetAxisRaw("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        // Raw mouse input (NO deltaTime here)
+        Vector2 targetMouseDelta = new Vector2(
+            Input.GetAxisRaw("Mouse X"),
+            Input.GetAxisRaw("Mouse Y")
+        );
 
-        // Smooth input
-        currentMouseX = Mathf.SmoothDamp(currentMouseX, targetMouseX, ref mouseXVelocity, smoothTime);
-        currentMouseY = Mathf.SmoothDamp(currentMouseY, targetMouseY, ref mouseYVelocity, smoothTime);
+        // Smooth it
+        currentMouseDelta = Vector2.Lerp(
+            currentMouseDelta,
+            targetMouseDelta,
+            1f / smoothing
+        );
 
-        // Vertical rotation (camera)
-        xRotation -= currentMouseY;
+        // Apply sensitivity AFTER smoothing
+        Vector2 finalDelta = currentMouseDelta * sensitivity * 100f;
+
+        // Vertical rotation
+        xRotation -= finalDelta.y;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
 
-        // Horizontal rotation (player body)
-        playerBody.Rotate(Vector3.up * currentMouseX);
+        // Horizontal rotation
+        playerBody.Rotate(Vector3.up * finalDelta.x);
     }
 }
