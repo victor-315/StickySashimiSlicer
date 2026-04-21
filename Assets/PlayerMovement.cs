@@ -28,11 +28,17 @@ public class PlayerMovement : MonoBehaviour
     public float staminaRegenRate = 1.5f;
 
     [Header("Exhaustion")]
-    public float exhaustLockTime = 1f;          // 🔴 hard 0-lock duration
-    public float slowRegenMultiplier = 0.3f;     // 🟡 slow regen after lock
+    public float exhaustLockTime = 1f;
+    public float slowRegenMultiplier = 0.3f;
+
+    [Header("Stop Regen Delay")]
+    public float stopRegenDelay = 0.3f;
 
     private float exhaustTimer;
     private bool regenLocked;
+
+    private float stopTimer;
+    private bool wasMoving;
 
     public Image fillImage;
 
@@ -49,6 +55,7 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        // Ground check
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
         if (isGrounded)
@@ -61,43 +68,65 @@ public class PlayerMovement : MonoBehaviour
         bool isMoving = input.magnitude > 0.1f;
         bool sprintInput = Input.GetKey(KeyCode.LeftShift);
 
-        // 🔴 Trigger exhaustion lock when stamina hits 0
+        // 🛑 Detect STOP (only for idle delay)
+        if (wasMoving && !isMoving)
+        {
+            stopTimer = stopRegenDelay;
+        }
+
+        wasMoving = isMoving;
+
+        if (stopTimer > 0f)
+            stopTimer -= Time.deltaTime;
+
+        // 🔴 Exhaustion trigger
         if (stamina <= 0f && !regenLocked)
         {
+            stamina = 0f;
             regenLocked = true;
             exhaustTimer = exhaustLockTime;
         }
 
-        // countdown lock timer
-        if (exhaustTimer > 0f)
+        // ⏳ Exhaustion timer
+        if (regenLocked)
         {
             exhaustTimer -= Time.deltaTime;
-        }
-        else
-        {
-            // unlock regen after delay
-            regenLocked = false;
+
+            if (exhaustTimer <= 0f)
+                regenLocked = false;
         }
 
-        // sprint blocked during lock
-        isSprinting = !regenLocked && sprintInput && isMoving;
+        // 🏃 Sprint logic
+        bool canSprint = !regenLocked && stamina > 0.1f;
+        isSprinting = canSprint && sprintInput && isMoving;
 
-        // 🔋 STAMINA LOGIC
+        // 🔋 STAMINA SYSTEM
         if (isSprinting)
         {
+            // 🔴 Drain
             stamina -= staminaDrainRate * Time.deltaTime;
         }
         else
         {
-            if (stamina < maxStamina)
+            // 🔋 Regen allowed while moving OR idle (after delay)
+            bool canRegen = false;
+
+            if (isMoving)
             {
-                if (regenLocked)
+                // ✅ moving but not sprinting → regen immediately
+                canRegen = true;
+            }
+            else if (stopTimer <= 0f)
+            {
+                // 🛑 idle → regen after delay
+                canRegen = true;
+            }
+
+            if (canRegen && !regenLocked && stamina < maxStamina)
+            {
+                if (stamina <= maxStamina * 0.2f)
                 {
-                    // 🔴 HARD LOCK (no regen)
-                }
-                else if (exhaustTimer <= 0f && stamina <= maxStamina * 0.2f)
-                {
-                    // 🟡 slow regen phase after lock
+                    // 🟡 slow regen
                     stamina += staminaRegenRate * slowRegenMultiplier * Time.deltaTime;
                 }
                 else
@@ -110,9 +139,11 @@ public class PlayerMovement : MonoBehaviour
 
         stamina = Mathf.Clamp(stamina, 0f, maxStamina);
 
+        // UI
         if (fillImage != null)
             fillImage.fillAmount = stamina / maxStamina;
 
+        // Jump
         if (Input.GetButtonDown("Jump") && jumpsRemaining > 0)
             Jump();
     }
