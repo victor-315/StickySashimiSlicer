@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class MouseLook : MonoBehaviour
+public class CameraScript : MonoBehaviour
 {
     public Transform playerBody;
 

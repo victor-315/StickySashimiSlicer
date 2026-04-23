@@ -404,10 +404,10 @@ MonoBehaviour:
   spawnPrefab: {fileID: 5451988989426228232, guid: 4c967bae1785a7f42b76abaabde78dcf, type: 3}
   minSpawn: 4
   maxSpawn: 7
-  explosionForce: 0
+  explosionForce: 1.5
   upwardBias: 0.5
   randomTorque: 2
-  spawnSpread: 0.7
+  spawnSpread: 0.5
   showRay: 1
   rayColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1001 &991054501
