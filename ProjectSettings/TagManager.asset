@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - fish
+  - SubmitStation
+  - Sashimi
+  - sashimi
   layers:
   - Default
   - TransparentFX
@@ -15,7 +18,7 @@ TagManager:
   - ground
   - fish
   - sashimi
-  - 
+  - serve
   - 
   - 
   - 
