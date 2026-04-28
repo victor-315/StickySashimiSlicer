@@ -4,43 +4,63 @@ public class CameraScript : MonoBehaviour
 {
     public Transform playerBody;
 
-    public float sensitivity = 2.5f;   // raw sensitivity
-    public float smoothing = 8f;       // higher = smoother
+    [Header("Settings")]
+    public float sensitivity = 150f;
+    public float smoothTime = 0.03f;
 
-    float xRotation = 0f;
+    private float xRotation = 0f;
 
-    Vector2 currentMouseDelta;
-    Vector2 currentMouseDeltaVelocity;
+    private float mouseXVelocity;
+    private float mouseYVelocity;
 
-    void Start()
-    {
-        Cursor.lockState = CursorLockMode.Locked;
-    }
+    private float currentMouseX;
+    private float currentMouseY;
+
+    private bool isLocked = false;
 
     void Update()
     {
-        // Raw mouse input (NO deltaTime here)
-        Vector2 targetMouseDelta = new Vector2(
-            Input.GetAxisRaw("Mouse X"),
-            Input.GetAxisRaw("Mouse Y")
-        );
+        HandleCursorLock();
 
-        // Smooth it
-        currentMouseDelta = Vector2.Lerp(
-            currentMouseDelta,
-            targetMouseDelta,
-            1f / smoothing
-        );
+        if (!isLocked) return;
 
-        // Apply sensitivity AFTER smoothing
-        Vector2 finalDelta = currentMouseDelta * sensitivity * 100f;
+        HandleMouseLook();
+    }
+
+    void HandleMouseLook()
+    {
+        float targetMouseX = Input.GetAxis("Mouse X") * sensitivity;
+        float targetMouseY = Input.GetAxis("Mouse Y") * sensitivity;
+
+        // ✅ Smooth mouse (no jitter)
+        currentMouseX = Mathf.SmoothDamp(currentMouseX, targetMouseX, ref mouseXVelocity, smoothTime);
+        currentMouseY = Mathf.SmoothDamp(currentMouseY, targetMouseY, ref mouseYVelocity, smoothTime);
 
         // Vertical rotation
-        xRotation -= finalDelta.y;
+        xRotation -= currentMouseY * Time.deltaTime;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
 
         // Horizontal rotation
-        playerBody.Rotate(Vector3.up * finalDelta.x);
+        playerBody.Rotate(Vector3.up * currentMouseX * Time.deltaTime);
+    }
+
+    void HandleCursorLock()
+    {
+        // 🔒 REQUIRED for WebGL
+        if (Input.GetMouseButtonDown(0))
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+            isLocked = true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            isLocked = false;
+        }
     }
 }

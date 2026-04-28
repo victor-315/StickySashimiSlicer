@@ -2451,8 +2451,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerBody: {fileID: 1634295165}
-  sensitivity: 0.05
-  smoothing: 4
+  sensitivity: 470
+  smoothTime: 0.03
 --- !u!81 &1088601140
 AudioListener:
   m_ObjectHideFlags: 0
@@ -3634,21 +3634,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 6
   sprintSpeed: 10
+  acceleration: 10
   jumpForce: 7
   maxJumps: 1
   groundCheck: {fileID: 419524046}
   groundDistance: 0.4
   groundMask:
     serializedVersion: 2
-    m_Bits: 64
-  maxStamina: 5
-  stamina: 5
-  staminaDrainRate: 2
-  staminaRegenRate: 1.5
-  exhaustLockTime: 1
-  slowRegenMultiplier: 0.3
-  stopRegenDelay: 0.3
-  fillImage: {fileID: 1006541433}
+    m_Bits: 448
 --- !u!54 &1634295161
 Rigidbody:
   m_ObjectHideFlags: 0
