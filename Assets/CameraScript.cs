@@ -5,16 +5,10 @@ public class CameraScript : MonoBehaviour
     public Transform playerBody;
 
     [Header("Settings")]
-    public float sensitivity = 150f;
-    public float smoothTime = 0.03f;
+    public float sensitivity = 180f;
 
     private float xRotation = 0f;
-
-    private float mouseXVelocity;
-    private float mouseYVelocity;
-
-    private float currentMouseX;
-    private float currentMouseY;
+    private float yRotation = 0f;
 
     private bool isLocked = false;
 
@@ -24,31 +18,23 @@ public class CameraScript : MonoBehaviour
 
         if (!isLocked) return;
 
-        HandleMouseLook();
-    }
+        // ✅ Instant input
+        float mouseX = Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
+        float mouseY = Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
 
-    void HandleMouseLook()
-    {
-        float targetMouseX = Input.GetAxis("Mouse X") * sensitivity;
-        float targetMouseY = Input.GetAxis("Mouse Y") * sensitivity;
+        // Update rotation values immediately
+        yRotation += mouseX;
+        xRotation -= mouseY;
 
-        // ✅ Smooth mouse (no jitter)
-        currentMouseX = Mathf.SmoothDamp(currentMouseX, targetMouseX, ref mouseXVelocity, smoothTime);
-        currentMouseY = Mathf.SmoothDamp(currentMouseY, targetMouseY, ref mouseYVelocity, smoothTime);
-
-        // Vertical rotation
-        xRotation -= currentMouseY * Time.deltaTime;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
+        // Apply instantly
+        playerBody.rotation = Quaternion.Euler(0f, yRotation, 0f);
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-
-        // Horizontal rotation
-        playerBody.Rotate(Vector3.up * currentMouseX * Time.deltaTime);
     }
 
     void HandleCursorLock()
     {
-        // 🔒 REQUIRED for WebGL
         if (Input.GetMouseButtonDown(0))
         {
             Cursor.lockState = CursorLockMode.Locked;

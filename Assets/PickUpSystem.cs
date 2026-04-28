@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-public class PlayerInteractionSystem : MonoBehaviour
+public class PickUpSystem : MonoBehaviour
 {
     [Header("Pickup Settings")]
     public float pickupRange = 4f;

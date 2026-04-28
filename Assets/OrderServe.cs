@@ -1,7 +1,7 @@
 using UnityEngine;
 using TMPro;
 
-public class OrderSystem : MonoBehaviour
+public class OrderServe : MonoBehaviour
 {
     [Header("Order Settings")]
     public int minOrderAmount = 1;

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
-public class FishFlop : MonoBehaviour
+public class Flopping : MonoBehaviour
 {
     [Header("Flop Settings")]
     public float flopForce = 2f;

@@ -1707,8 +1707,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4286709677
-  m_fontColor: {r: 0.6774159, g: 1, b: 0.504717, a: 1}
+    rgba: 4280869225
+  m_fontColor: {r: 0.41018948, g: 0.8805031, b: 0.15782593, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -2451,8 +2451,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerBody: {fileID: 1634295165}
-  sensitivity: 470
-  smoothTime: 0.03
+  sensitivity: 147
 --- !u!81 &1088601140
 AudioListener:
   m_ObjectHideFlags: 0
@@ -2635,8 +2634,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4286709677
-  m_fontColor: {r: 0.6774159, g: 1, b: 0.504717, a: 1}
+    rgba: 4290838401
+  m_fontColor: {r: 0.5058824, g: 1, b: 0.7532024, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3169,7 +3168,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4286709677
-  m_fontColor: {r: 0.6774159, g: 1, b: 0.504717, a: 1}
+  m_fontColor: {r: 0.42225507, g: 0.99371064, b: 0.11562024, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3634,7 +3633,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 6
   sprintSpeed: 10
-  acceleration: 10
+  acceleration: 12
   jumpForce: 7
   maxJumps: 1
   groundCheck: {fileID: 419524046}
@@ -3667,8 +3666,8 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 1
-  m_Constraints: 80
-  m_CollisionDetection: 0
+  m_Constraints: 112
+  m_CollisionDetection: 1
 --- !u!136 &1634295162
 CapsuleCollider:
   m_ObjectHideFlags: 0

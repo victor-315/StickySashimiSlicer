@@ -6,28 +6,28 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement")]
     public float moveSpeed = 6f;
     public float sprintSpeed = 10f;
-    public float acceleration = 10f;
+
+    public float acceleration = 12f;
 
     [Header("Jumping")]
     public float jumpForce = 7f;
     public int maxJumps = 2;
 
-    private int jumpsRemaining;
-
-    [Header("Ground Check")]
     public Transform groundCheck;
     public float groundDistance = 0.4f;
     public LayerMask groundMask;
 
+    private Rigidbody rb;
+
+    private int jumpsRemaining;
     private bool isGrounded;
 
-    private Rigidbody rb;
+    private Vector3 moveDirection; // 🔥 KEY FIX
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
 
-        // 🔒 Prevent physics rotation jitter
         rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -38,6 +38,8 @@ public class PlayerMovement : MonoBehaviour
     {
         GroundCheck();
         HandleJump();
+
+        CacheInputDirection(); // 🔥 IMPORTANT FIX
     }
 
     void FixedUpdate()
@@ -45,19 +47,27 @@ public class PlayerMovement : MonoBehaviour
         Move();
     }
 
-    // ================= MOVEMENT =================
+    // ================= INPUT DIRECTION =================
 
-    void Move()
+    void CacheInputDirection()
     {
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
 
         Vector3 input = new Vector3(x, 0f, z).normalized;
 
-        bool isSprinting = Input.GetKey(KeyCode.LeftShift);
-        float targetSpeed = isSprinting ? sprintSpeed : moveSpeed;
+        // 🔥 Use CURRENT camera/player rotation instantly
+        moveDirection = transform.TransformDirection(input);
+    }
 
-        Vector3 targetVelocity = transform.TransformDirection(input) * targetSpeed;
+    // ================= MOVEMENT =================
+
+    void Move()
+    {
+        bool isSprinting = Input.GetKey(KeyCode.LeftShift);
+        float speed = isSprinting ? sprintSpeed : moveSpeed;
+
+        Vector3 targetVelocity = moveDirection * speed;
 
         Vector3 velocity = Vector3.Lerp(
             new Vector3(rb.velocity.x, 0f, rb.velocity.z),
@@ -74,29 +84,19 @@ public class PlayerMovement : MonoBehaviour
     {
         if (Input.GetButtonDown("Jump") && jumpsRemaining > 0)
         {
-            Jump();
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            jumpsRemaining--;
         }
     }
 
-    void Jump()
-    {
-        // Reset Y velocity so jumps are consistent
-        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-
-        jumpsRemaining--;
-    }
-
-    // ================= GROUND CHECK =================
+    // ================= GROUND =================
 
     void GroundCheck()
     {
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
         if (isGrounded)
-        {
             jumpsRemaining = maxJumps;
-        }
     }
 }
