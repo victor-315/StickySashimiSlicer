@@ -3611,7 +3611,6 @@ GameObject:
   - component: {fileID: 1634295161}
   - component: {fileID: 1634295160}
   - component: {fileID: 1634295166}
-  - component: {fileID: 1634295167}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -3633,7 +3632,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 6
   sprintSpeed: 10
-  acceleration: 12
   jumpForce: 7
   maxJumps: 1
   groundCheck: {fileID: 419524046}
@@ -3641,6 +3639,14 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 448
+  maxStamina: 5
+  stamina: 0
+  staminaDrainRate: 1
+  staminaRegenRate: 1.5
+  exhaustLockTime: 1
+  slowRegenMultiplier: 0.3
+  stopRegenDelay: 0.3
+  fillImage: {fileID: 1006541433}
 --- !u!54 &1634295161
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -3775,42 +3781,18 @@ MonoBehaviour:
   pickupMask:
     serializedVersion: 2
     m_Bits: 256
-  pickupCooldown: 0.047
   highlightMaterial: {fileID: 2100000, guid: 354259dd293368e4e98461b2259f0e16, type: 2}
   sashimi: 0
+  maxSashimi: 10
   minOrderAmount: 1
   maxOrderAmount: 5
+  interactDistance: 4
+  interactMask:
+    serializedVersion: 2
+    m_Bits: 512
   orderText: {fileID: 1235255944}
   inventoryText: {fileID: 896076012}
   resultText: {fileID: 1455226847}
-  interactDistance: 4
-  interactMask:
-    serializedVersion: 2
-    m_Bits: 512
-  showRay: 1
---- !u!114 &1634295167
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1634295159}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d4768c4516a9ef4488845a44ee55a4a3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  minOrderAmount: 1
-  maxOrderAmount: 5
-  sashimi: 0
-  orderText: {fileID: 1235255944}
-  inventoryText: {fileID: 0}
-  resultText: {fileID: 0}
-  interactDistance: 4
-  interactMask:
-    serializedVersion: 2
-    m_Bits: 512
-  showRay: 1
 --- !u!1 &1703953721
 GameObject:
   m_ObjectHideFlags: 0

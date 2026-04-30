@@ -1,14 +1,12 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
-public class PickUpSystem : MonoBehaviour
+public class PlayerInteractionSystem : MonoBehaviour
 {
     [Header("Pickup Settings")]
     public float pickupRange = 4f;
     public LayerMask pickupMask;
-    public float pickupCooldown = 0.02f; // 🔥 pickup speed
-
-    private float pickupTimer;
 
     [Header("Highlight")]
     public Material highlightMaterial;
@@ -19,23 +17,24 @@ public class PickUpSystem : MonoBehaviour
 
     [Header("Inventory")]
     public int sashimi = 0;
+    public int maxSashimi = 10;
 
     [Header("Order Settings")]
     public int minOrderAmount = 1;
     public int maxOrderAmount = 5;
     private int requiredAmount;
 
+    [Header("Serve System")]
+    public float interactDistance = 4f;
+    public LayerMask interactMask;
+
     [Header("UI")]
     public TMP_Text orderText;
     public TMP_Text inventoryText;
     public TMP_Text resultText;
 
-    [Header("Interaction")]
-    public float interactDistance = 4f;
-    public LayerMask interactMask;
-    public bool showRay = true;
-
     private Camera cam;
+    private Coroutine messageRoutine;
 
     void Start()
     {
@@ -48,31 +47,95 @@ public class PickUpSystem : MonoBehaviour
     {
         FindClosestItem();
 
-        if (showRay)
-            DrawRay();
-
-        HandlePickupHold();
-
         if (Input.GetKeyDown(KeyCode.E))
         {
-            TrySubmitOrder();
+            if (currentItem != null)
+                PickupItem();
+            else
+                TrySubmitOrder();
         }
     }
 
-    // ================= HOLD TO PICKUP =================
+    // ================= PICKUP =================
 
-    void HandlePickupHold()
+    void PickupItem()
     {
-        pickupTimer -= Time.deltaTime;
+        if (currentItem == null) return;
 
-        if (Input.GetKey(KeyCode.E) && currentItem != null && pickupTimer <= 0f)
+        if (currentItem.CompareTag("Sashimi"))
         {
-            PickupItem();
-            pickupTimer = pickupCooldown;
+            if (sashimi >= maxSashimi)
+            {
+                ShowMessage("Bag Full!");
+                return;
+            }
+
+            sashimi++;
         }
+
+        RemoveHighlight();
+        Destroy(currentItem);
+        currentItem = null;
+
+        UpdateUI();
     }
 
-    // ================= PICKUP + HIGHLIGHT =================
+    // ================= SERVE TABLE FIX =================
+
+    void TrySubmitOrder()
+    {
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+
+        // ✔ NOW USING CORRECT INTERACT MASK (SERVE TABLE REQUIRED)
+        if (!Physics.Raycast(ray, out hit, interactDistance, interactMask))
+            return;
+
+        if (!hit.collider.CompareTag("SubmitStation"))
+            return;
+
+        if (sashimi >= requiredAmount)
+        {
+            sashimi -= requiredAmount;
+
+            ShowMessage("Order Complete!", 2f);
+
+            GenerateOrder();
+        }
+        else
+        {
+            ShowMessage("Not Enough Sashimi!", 2f);
+        }
+
+        UpdateUI();
+    }
+
+    // ================= ORDER =================
+
+    void GenerateOrder()
+    {
+        requiredAmount = Random.Range(minOrderAmount, maxOrderAmount + 1);
+        UpdateUI();
+    }
+
+    // ================= MESSAGE SYSTEM =================
+
+    void ShowMessage(string msg, float time = 2f)
+    {
+        if (messageRoutine != null)
+            StopCoroutine(messageRoutine);
+
+        messageRoutine = StartCoroutine(MessageRoutine(msg, time));
+    }
+
+    IEnumerator MessageRoutine(string msg, float time)
+    {
+        resultText.text = msg;
+        yield return new WaitForSeconds(time);
+        resultText.text = "";
+    }
+
+    // ================= HIGHLIGHT =================
 
     void FindClosestItem()
     {
@@ -130,93 +193,14 @@ public class PickUpSystem : MonoBehaviour
         originalMaterials = null;
     }
 
-    void PickupItem()
-    {
-        if (currentItem != null && currentItem.CompareTag("Sashimi"))
-        {
-            sashimi++;
-        }
-
-        Destroy(currentItem);
-        currentItem = null;
-
-        UpdateUI();
-    }
-
-    // ================= ORDER SYSTEM =================
-
-    void GenerateOrder()
-    {
-        requiredAmount = Random.Range(minOrderAmount, maxOrderAmount + 1);
-        UpdateUI();
-    }
-
-    void TrySubmitOrder()
-    {
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, interactDistance, interactMask))
-        {
-            if (hit.collider.CompareTag("SubmitStation"))
-            {
-                AttemptCompleteOrder();
-            }
-        }
-    }
-
-    void AttemptCompleteOrder()
-    {
-        if (sashimi >= requiredAmount)
-        {
-            sashimi -= requiredAmount;
-
-            if (resultText != null)
-                resultText.text = "Order Complete!";
-
-            GenerateOrder();
-
-            CancelInvoke(nameof(ClearResultText));
-            Invoke(nameof(ClearResultText), 2f);
-        }
-        else
-        {
-            if (resultText != null)
-                resultText.text = "Not Enough Sashimi!";
-        }
-
-        UpdateUI();
-    }
-
-    void ClearResultText()
-    {
-        if (resultText != null)
-            resultText.text = "";
-    }
-
     // ================= UI =================
 
     void UpdateUI()
     {
         if (orderText != null)
-        {
-            orderText.text =
-                "<b>Order:</b>\n" +
-                "Sashimi: " + requiredAmount;
-        }
+            orderText.text = "<b>Order:</b>\nSashimi: " + requiredAmount;
 
         if (inventoryText != null)
-        {
-            inventoryText.text =
-                "Sashimi: " + sashimi;
-        }
-    }
-
-    // ================= DEBUG =================
-
-    void DrawRay()
-    {
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        Debug.DrawRay(ray.origin, ray.direction * interactDistance, Color.green);
+            inventoryText.text = "Sashimi: " + sashimi + " / " + maxSashimi;
     }
 }
