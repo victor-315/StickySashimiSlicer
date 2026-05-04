@@ -19,6 +19,13 @@ public class PlayerInteractionSystem : MonoBehaviour
     public int sashimi = 0;
     public int maxSashimi = 10;
 
+    [Header("Plating System")]
+    public bool holdingPlate = false;
+    public int sashimiOnPlate = 0;
+    public int maxSashimiOnPlate = 5;
+    public Transform plateHoldPoint;
+    private GameObject heldPlateObject;
+
     [Header("Order Settings")]
     public int minOrderAmount = 1;
     public int maxOrderAmount = 5;
@@ -32,6 +39,7 @@ public class PlayerInteractionSystem : MonoBehaviour
     public TMP_Text orderText;
     public TMP_Text inventoryText;
     public TMP_Text resultText;
+    public TMP_Text plateText;
 
     private Camera cam;
     private Coroutine messageRoutine;
@@ -52,7 +60,12 @@ public class PlayerInteractionSystem : MonoBehaviour
             if (currentItem != null)
                 PickupItem();
             else
-                TrySubmitOrder();
+                TryInteractWithStation();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            DropPlate();
         }
     }
 
@@ -62,8 +75,30 @@ public class PlayerInteractionSystem : MonoBehaviour
     {
         if (currentItem == null) return;
 
+        if (currentItem.CompareTag("Plate"))
+        {
+            PickupPlate();
+            return;
+        }
+
         if (currentItem.CompareTag("Sashimi"))
         {
+            if (holdingPlate)
+            {
+                if (sashimiOnPlate >= maxSashimiOnPlate)
+                {
+                    ShowMessage("Plate Full!");
+                    return;
+                }
+
+                sashimiOnPlate++;
+                RemoveHighlight();
+                Destroy(currentItem);
+                currentItem = null;
+                UpdateUI();
+                return;
+            }
+
             if (sashimi >= maxSashimi)
             {
                 ShowMessage("Bag Full!");
@@ -80,33 +115,129 @@ public class PlayerInteractionSystem : MonoBehaviour
         UpdateUI();
     }
 
-    // ================= SERVE TABLE FIX =================
+    // ================= PLATING SYSTEM =================
 
-    void TrySubmitOrder()
+    void PickupPlate()
+    {
+        if (holdingPlate)
+        {
+            ShowMessage("Already holding a plate!");
+            return;
+        }
+
+        holdingPlate = true;
+        sashimiOnPlate = 0;
+
+        if (plateHoldPoint != null)
+        {
+            currentItem.transform.SetParent(plateHoldPoint);
+            currentItem.transform.localPosition = Vector3.zero;
+            currentItem.transform.localRotation = Quaternion.identity;
+            heldPlateObject = currentItem;
+
+            Collider plateCol = heldPlateObject.GetComponent<Collider>();
+            if (plateCol != null) plateCol.enabled = false;
+        }
+        else
+        {
+            heldPlateObject = currentItem;
+            heldPlateObject.SetActive(false);
+        }
+
+        RemoveHighlight();
+        currentItem = null;
+
+        ShowMessage("Plate picked up! Load sashimi, then serve.", 2f);
+        UpdateUI();
+    }
+
+    void DropPlate()
+    {
+        if (!holdingPlate) return;
+
+        if (heldPlateObject != null)
+        {
+            heldPlateObject.transform.SetParent(null);
+
+            Collider plateCol = heldPlateObject.GetComponent<Collider>();
+            if (plateCol != null) plateCol.enabled = true;
+
+            heldPlateObject.SetActive(true);
+            heldPlateObject.transform.position = transform.position + transform.forward * 1.2f + Vector3.up * 0.5f;
+            heldPlateObject = null;
+        }
+
+        holdingPlate = false;
+        sashimiOnPlate = 0;
+
+        ShowMessage("Plate dropped.", 1.5f);
+        UpdateUI();
+    }
+
+    // ================= STATION INTERACTION =================
+
+    void TryInteractWithStation()
     {
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
-        // ✔ NOW USING CORRECT INTERACT MASK (SERVE TABLE REQUIRED)
         if (!Physics.Raycast(ray, out hit, interactDistance, interactMask))
             return;
 
-        if (!hit.collider.CompareTag("SubmitStation"))
-            return;
-
-        if (sashimi >= requiredAmount)
+        if (hit.collider.CompareTag("SubmitStation"))
         {
-            sashimi -= requiredAmount;
+            TrySubmitOrder();
+        }
+        else if (hit.collider.CompareTag("PlateStation"))
+        {
+            TryPickupPlateFromStation();
+        }
+    }
+
+    void TrySubmitOrder()
+    {
+        if (!holdingPlate)
+        {
+            ShowMessage("You need a plated dish!", 2f);
+            UpdateUI();
+            return;
+        }
+
+        if (sashimiOnPlate >= requiredAmount)
+        {
+            sashimiOnPlate = 0;
+            holdingPlate = false;
+
+            if (heldPlateObject != null)
+            {
+                Destroy(heldPlateObject);
+                heldPlateObject = null;
+            }
 
             ShowMessage("Order Complete!", 2f);
-
             GenerateOrder();
         }
         else
         {
-            ShowMessage("Not Enough Sashimi!", 2f);
+            ShowMessage("Not Enough Sashimi on Plate! (" + sashimiOnPlate + "/" + requiredAmount + ")", 2f);
         }
 
+        UpdateUI();
+    }
+
+    void TryPickupPlateFromStation()
+    {
+        if (holdingPlate)
+        {
+            ShowMessage("Already holding a plate!", 2f);
+            return;
+        }
+
+        holdingPlate = true;
+        sashimiOnPlate = 0;
+        heldPlateObject = null;
+
+        ShowMessage("Plate picked up! Load sashimi, then serve.", 2f);
         UpdateUI();
     }
 
@@ -201,6 +332,14 @@ public class PlayerInteractionSystem : MonoBehaviour
             orderText.text = "<b>Order:</b>\nSashimi: " + requiredAmount;
 
         if (inventoryText != null)
-            inventoryText.text = "Sashimi: " + sashimi + " / " + maxSashimi;
+            inventoryText.text = "Sashimi (Bag): " + sashimi + " / " + maxSashimi;
+
+        if (plateText != null)
+        {
+            if (holdingPlate)
+                plateText.text = "<b>Plate:</b> " + sashimiOnPlate + " / " + requiredAmount + " sashimi";
+            else
+                plateText.text = "<b>Plate:</b> None";
+        }
     }
 }
