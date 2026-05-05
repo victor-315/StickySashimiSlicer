@@ -9,6 +9,10 @@ TagManager:
   - Sashimi
   - sashimi
   - Bucket
+  - Plate
+  - PlatingStation
+  - TrashStation
+  - StationPlate
   layers:
   - Default
   - TransparentFX
