@@ -29,6 +29,7 @@ public class PlayerInteractionSystem : MonoBehaviour
     [Header("Layer Settings")]
     public int pickupLayer = 6;
     public int interactLayer = 7;
+    public LayerMask plateMask;
 
     [Header("Order Settings")]
     public int minOrderAmount = 1;
@@ -38,6 +39,10 @@ public class PlayerInteractionSystem : MonoBehaviour
     [Header("Serve System")]
     public float interactDistance = 4f;
     public LayerMask interactMask;
+
+    [Header("Hold Pickup Settings")]
+    public float holdPickupInterval = 0.2f;
+    private float holdPickupTimer = 0f;
 
     [Header("UI")]
     public TMP_Text orderText;
@@ -52,6 +57,38 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     private Camera cam;
     private Coroutine messageRoutine;
+
+    private int PlateLayer => Mathf.RoundToInt(Mathf.Log(plateMask.value, 2));
+
+    // ================= PLATE MEMORY COMPONENT =================
+
+    public class PlateData : MonoBehaviour
+    {
+        public int sashimiCount = 0;
+    }
+
+    // ================= HELPERS =================
+
+    PlateData GetOrAddPlateData(GameObject plateObj)
+    {
+        PlateData pd = plateObj.GetComponent<PlateData>();
+        if (pd == null) pd = plateObj.AddComponent<PlateData>();
+        return pd;
+    }
+
+    void SyncPlateFromObject()
+    {
+        if (heldPlateObject != null)
+            sashimiOnPlate = GetOrAddPlateData(heldPlateObject).sashimiCount;
+    }
+
+    void SyncPlateToObject()
+    {
+        if (heldPlateObject != null)
+            GetOrAddPlateData(heldPlateObject).sashimiCount = sashimiOnPlate;
+    }
+
+    // ==========================================================
 
     void Start()
     {
@@ -70,23 +107,32 @@ public class PlayerInteractionSystem : MonoBehaviour
                 PickupItem();
             else
                 TryInteractWithStation();
+
+            holdPickupTimer = holdPickupInterval;
         }
+
+        if (Input.GetKey(KeyCode.E) && currentItem != null && currentItem.CompareTag("Sashimi"))
+        {
+            holdPickupTimer -= Time.deltaTime;
+            if (holdPickupTimer <= 0f)
+            {
+                PickupItem();
+                holdPickupTimer = holdPickupInterval;
+            }
+        }
+
+        if (Input.GetMouseButtonDown(0))
+            TryPlateMouseInteract();
 
         if (Input.GetKeyDown(KeyCode.Q))
             DropHeldPlate();
     }
 
-    // ================= PICKUP =================
+    // ================= PICKUP (sashimi / other items only) =================
 
     void PickupItem()
     {
         if (currentItem == null) return;
-
-        if (currentItem.CompareTag("Plate"))
-        {
-            PickupPlateFromWorld();
-            return;
-        }
 
         if (currentItem.CompareTag("Sashimi"))
         {
@@ -110,41 +156,97 @@ public class PlayerInteractionSystem : MonoBehaviour
         UpdateUI();
     }
 
+    // ================= LMB — ALL PLATE PICKUP / PUTDOWN / SUBMIT / TRASH =================
+
+    void TryPlateMouseInteract()
+    {
+        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+
+        if (!Physics.Raycast(ray, out hit, interactDistance, plateMask | interactMask))
+            return;
+
+        string tag = hit.collider.tag;
+
+        if (tag == "Plate")
+        {
+            PickupPlateFromWorld(hit.collider.gameObject);
+            return;
+        }
+
+        if (tag == "StationPlate")
+        {
+            if (holdingPlate)
+            {
+                ShowMessage("Already holding a plate!", 2f);
+                return;
+            }
+            PickUpPlateFromStation();
+            return;
+        }
+
+        if (tag == "PlatingStation")
+        {
+            if (plateAtStation && !holdingPlate)
+            {
+                PickUpPlateFromStation();
+                return;
+            }
+
+            if (!holdingPlate)
+            {
+                ShowMessage("Grab a plate first!", 2f);
+                return;
+            }
+
+            PlaceHeldPlateOnStation(hit.collider.transform);
+            return;
+        }
+
+        if (tag == "SubmitStation")
+        {
+            TrySubmitOrder();
+            return;
+        }
+
+        if (tag == "TrashStation")
+        {
+            TryTrashHeldPlate();
+            return;
+        }
+    }
+
     // ================= PLATE — WORLD PICKUP =================
 
-    void PickupPlateFromWorld()
+    void PickupPlateFromWorld(GameObject plateObj)
     {
         if (holdingPlate)
         {
-            ShowMessage("Already holding a plate!");
+            ShowMessage("Already holding a plate!", 2f);
             return;
         }
 
         holdingPlate = true;
-        sashimiOnPlate = 0;
 
-        AttachPlateToHand(currentItem);
+        // Read existing sashimi count from the plate object itself
+        sashimiOnPlate = GetOrAddPlateData(plateObj).sashimiCount;
 
-        RemoveHighlight();
-        currentItem = null;
+        AttachPlateToHand(plateObj);
 
-        ShowMessage("Plate picked up! Take it to the Plating Station.", 2f);
+        ShowMessage("Plate picked up! (" + sashimiOnPlate + " sashimi on plate)", 2f);
         UpdateUI();
     }
 
-    // Puts the plate in hand — disables its collider and physics while held
     void AttachPlateToHand(GameObject plateObj)
     {
-        // Unparent cleanly first in case it was sitting on the station
         plateObj.transform.SetParent(null);
 
         Rigidbody rb = plateObj.GetComponent<Rigidbody>();
         if (rb != null) rb.isKinematic = true;
 
-        plateObj.tag   = "Plate";
-        plateObj.layer = pickupLayer;
+        plateObj.tag = "Plate";
+        plateObj.layer = PlateLayer;
 
-        // Disable collider while held — we don't need it
         Collider c = plateObj.GetComponent<Collider>();
         if (c != null) c.enabled = false;
 
@@ -167,6 +269,9 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (heldPlateObject != null)
         {
+            // Save current count back to the object before releasing it
+            SyncPlateToObject();
+
             heldPlateObject.transform.SetParent(null);
 
             Rigidbody rb = heldPlateObject.GetComponent<Rigidbody>();
@@ -175,8 +280,8 @@ public class PlayerInteractionSystem : MonoBehaviour
             Collider c = heldPlateObject.GetComponent<Collider>();
             if (c != null) c.enabled = true;
 
-            heldPlateObject.layer = pickupLayer;
-            heldPlateObject.tag   = "Plate";
+            heldPlateObject.layer = PlateLayer;
+            heldPlateObject.tag = "Plate";
             heldPlateObject.SetActive(true);
             heldPlateObject.transform.position =
                 transform.position + transform.forward * 1.2f + Vector3.up * 0.5f;
@@ -184,84 +289,57 @@ public class PlayerInteractionSystem : MonoBehaviour
             heldPlateObject = null;
         }
 
-        holdingPlate   = false;
+        holdingPlate = false;
         sashimiOnPlate = 0;
 
         ShowMessage("Plate dropped.", 1.5f);
         UpdateUI();
     }
 
-    // ================= STATION INTERACTION =================
+    // ================= STATION INTERACTION (E) — SASHIMI LOADING ONLY =================
 
     void TryInteractWithStation()
     {
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
-        // Only care about the very first thing the ray hits on interactMask
         if (!Physics.Raycast(ray, out hit, interactDistance, interactMask))
             return;
 
         string tag = hit.collider.tag;
 
-        if (tag == "SubmitStation")
-            TrySubmitOrder();
-        else if (tag == "PlatingStation")
-            TryInteractWithPlatingStation(hit.collider.transform);
-        else if (tag == "StationPlate")
+        if (tag == "StationPlate" || tag == "PlatingStation")
             TryLoadSashimiOntoStationPlate();
-        else if (tag == "TrashStation")
-            TryTrashHeldPlate();
     }
 
     // ================= PLATING STATION =================
 
-    void TryInteractWithPlatingStation(Transform stationTransform)
-    {
-        // No plate here — deposit the one we're holding
-        if (!plateAtStation)
-        {
-            if (!holdingPlate)
-            {
-                ShowMessage("Grab a plate first!", 2f);
-                return;
-            }
-
-            PlaceHeldPlateOnStation(stationTransform);
-            return;
-        }
-
-        // Plate already here — pick it back up
-        if (holdingPlate)
-        {
-            ShowMessage("Already holding a plate!", 2f);
-            return;
-        }
-
-        PickUpPlateFromStation();
-    }
-
     void PlaceHeldPlateOnStation(Transform stationTransform)
     {
-        plateAtStation          = true;
-        sashimiAtStation        = sashimiOnPlate;
-        stationPlateObject      = heldPlateObject;
+        if (plateAtStation)
+        {
+            ShowMessage("Station already has a plate!", 2f);
+            return;
+        }
+
+        // Save current sashimi count to the plate object before putting it down
+        SyncPlateToObject();
+
+        plateAtStation = true;
+        sashimiAtStation = sashimiOnPlate;
+        stationPlateObject = heldPlateObject;
         platingStationTransform = stationTransform;
 
         if (stationPlateObject != null)
         {
-            // Unparent from hand
             stationPlateObject.transform.SetParent(null);
 
             Rigidbody rb = stationPlateObject.GetComponent<Rigidbody>();
             if (rb != null) rb.isKinematic = true;
 
-            // Switch to StationPlate tag and interactLayer so the raycast
-            // hits the plate separately from the station beneath it
-            stationPlateObject.tag   = "StationPlate";
+            stationPlateObject.tag = "StationPlate";
             stationPlateObject.layer = interactLayer;
 
-            // Re-enable collider so the raycast can actually hit it
             Collider c = stationPlateObject.GetComponent<Collider>();
             if (c != null) c.enabled = true;
 
@@ -270,32 +348,37 @@ public class PlayerInteractionSystem : MonoBehaviour
                 stationTransform.position + Vector3.up * 0.8f;
         }
 
-        holdingPlate    = false;
+        holdingPlate = false;
         heldPlateObject = null;
-        sashimiOnPlate  = 0;
+        sashimiOnPlate = 0;
 
-        ShowMessage("Plate set down. Look at the plate and press E to load sashimi.", 2f);
+        ShowMessage("Plate set down. Press E to load sashimi.", 2f);
         UpdateUI();
     }
 
     void PickUpPlateFromStation()
     {
-        holdingPlate   = true;
-        sashimiOnPlate = sashimiAtStation;
+        holdingPlate = true;
+
+        // Read sashimi count from the plate object itself
+        if (stationPlateObject != null)
+            sashimiOnPlate = GetOrAddPlateData(stationPlateObject).sashimiCount;
+        else
+            sashimiOnPlate = sashimiAtStation;
 
         if (stationPlateObject != null)
         {
-            stationPlateObject.tag   = "Plate";
-            stationPlateObject.layer = pickupLayer;
+            stationPlateObject.tag = "Plate";
+            stationPlateObject.layer = PlateLayer;
             AttachPlateToHand(stationPlateObject);
         }
 
-        plateAtStation          = false;
-        sashimiAtStation        = 0;
-        stationPlateObject      = null;
+        plateAtStation = false;
+        sashimiAtStation = 0;
+        stationPlateObject = null;
         platingStationTransform = null;
 
-        ShowMessage("Plate picked up! Take it to the serve station.", 2f);
+        ShowMessage("Plate picked up! (" + sashimiOnPlate + " sashimi on plate)", 2f);
         UpdateUI();
     }
 
@@ -323,6 +406,11 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         sashimi--;
         sashimiAtStation++;
+
+        // Keep PlateData in sync as sashimi is loaded
+        if (stationPlateObject != null)
+            GetOrAddPlateData(stationPlateObject).sashimiCount = sashimiAtStation;
+
         ShowMessage("Loaded sashimi. (" + sashimiAtStation + "/" + maxSashimiOnPlate + ")", 1.5f);
         UpdateUI();
     }
@@ -343,7 +431,7 @@ public class PlayerInteractionSystem : MonoBehaviour
             heldPlateObject = null;
         }
 
-        holdingPlate   = false;
+        holdingPlate = false;
         sashimiOnPlate = 0;
 
         ShowMessage("Plate trashed.", 2f);
@@ -364,7 +452,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (sashimiOnPlate == requiredAmount)
         {
             sashimiOnPlate = 0;
-            holdingPlate   = false;
+            holdingPlate = false;
 
             if (heldPlateObject != null)
             {
@@ -410,7 +498,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         resultText.text = "";
     }
 
-    // ================= HIGHLIGHT =================
+    // ================= HIGHLIGHT (sashimi / non-plate items only) =================
 
     void FindClosestItem()
     {
@@ -421,6 +509,8 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         foreach (Collider col in items)
         {
+            if (col.CompareTag("Plate") || col.CompareTag("StationPlate")) continue;
+
             float dist = Vector3.Distance(transform.position, col.transform.position);
             if (dist < minDist) { minDist = dist; closest = col.gameObject; }
         }
