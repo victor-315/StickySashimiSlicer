@@ -26,6 +26,19 @@ public class PlayerInteractionSystem : MonoBehaviour
     public Transform plateHoldPoint;
     private GameObject heldPlateObject;
 
+    [Header("Sashimi Visuals")]
+    public GameObject sashimiPrefab;
+    public float sashimiYRotRange = 180f;
+    public float sashimiXZRotRange = 25f;
+    public Vector3[] sashimiSlotOffsets = new Vector3[5]
+    {
+        new Vector3(-0.16f, 0.05f, 0.00f),
+        new Vector3(-0.08f, 0.05f, 0.00f),
+        new Vector3( 0.00f, 0.05f, 0.00f),
+        new Vector3( 0.08f, 0.05f, 0.00f),
+        new Vector3( 0.16f, 0.05f, 0.00f)
+    };
+
     [Header("Layer Settings")]
     public int pickupLayer = 6;
     public int interactLayer = 7;
@@ -65,6 +78,8 @@ public class PlayerInteractionSystem : MonoBehaviour
     public class PlateData : MonoBehaviour
     {
         public int sashimiCount = 0;
+        public GameObject[] sashimiVisuals  = new GameObject[5];
+        public Vector3[]    sashimiRotations = new Vector3[5];
     }
 
     // ================= HELPERS =================
@@ -86,6 +101,83 @@ public class PlayerInteractionSystem : MonoBehaviour
     {
         if (heldPlateObject != null)
             GetOrAddPlateData(heldPlateObject).sashimiCount = sashimiOnPlate;
+    }
+
+    void MakeVisualStatic(GameObject visual)
+    {
+        Rigidbody rb = visual.GetComponent<Rigidbody>();
+        if (rb != null) Destroy(rb);
+
+        foreach (Rigidbody childRb in visual.GetComponentsInChildren<Rigidbody>(true))
+            Destroy(childRb);
+    }
+
+    Vector3 RandomSashimiRotation()
+    {
+        return new Vector3(
+            Random.Range(-sashimiXZRotRange, sashimiXZRotRange),
+            Random.Range(-sashimiYRotRange,  sashimiYRotRange),
+            Random.Range(-sashimiXZRotRange, sashimiXZRotRange)
+        );
+    }
+
+    void AddSashimiVisual(GameObject plateObj)
+    {
+        if (sashimiPrefab == null) return;
+
+        PlateData pd = GetOrAddPlateData(plateObj);
+        int slot = pd.sashimiCount - 1;
+        if (slot < 0 || slot >= sashimiSlotOffsets.Length) return;
+        if (pd.sashimiVisuals[slot] != null) return;
+
+        // Generate and store a full 3-axis rotation for this slot
+        Vector3 rot = RandomSashimiRotation();
+        pd.sashimiRotations[slot] = rot;
+
+        GameObject visual = Instantiate(sashimiPrefab);
+        MakeVisualStatic(visual);
+
+        visual.transform.SetParent(plateObj.transform);
+        visual.transform.localPosition = sashimiSlotOffsets[slot];
+        visual.transform.localRotation = Quaternion.Euler(rot);
+
+        pd.sashimiVisuals[slot] = visual;
+    }
+
+    void ClearSashimiVisuals(GameObject plateObj)
+    {
+        if (plateObj == null) return;
+        PlateData pd = GetOrAddPlateData(plateObj);
+        for (int i = 0; i < pd.sashimiVisuals.Length; i++)
+        {
+            if (pd.sashimiVisuals[i] != null)
+            {
+                Destroy(pd.sashimiVisuals[i]);
+                pd.sashimiVisuals[i] = null;
+            }
+        }
+    }
+
+    void RebuildSashimiVisuals(GameObject plateObj)
+    {
+        if (plateObj == null) return;
+        ClearSashimiVisuals(plateObj);
+        PlateData pd = GetOrAddPlateData(plateObj);
+        for (int i = 0; i < pd.sashimiCount; i++)
+        {
+            if (sashimiPrefab == null) break;
+            if (i >= sashimiSlotOffsets.Length) break;
+
+            GameObject visual = Instantiate(sashimiPrefab);
+            MakeVisualStatic(visual);
+
+            visual.transform.SetParent(plateObj.transform);
+            visual.transform.localPosition = sashimiSlotOffsets[i];
+            // Reuse stored rotation so pieces don't shuffle on every pickup
+            visual.transform.localRotation = Quaternion.Euler(pd.sashimiRotations[i]);
+
+            pd.sashimiVisuals[i] = visual;
+        }
     }
 
     // ==========================================================
@@ -227,11 +319,10 @@ public class PlayerInteractionSystem : MonoBehaviour
         }
 
         holdingPlate = true;
-
-        // Read existing sashimi count from the plate object itself
         sashimiOnPlate = GetOrAddPlateData(plateObj).sashimiCount;
 
         AttachPlateToHand(plateObj);
+        RebuildSashimiVisuals(plateObj);
 
         ShowMessage("Plate picked up! (" + sashimiOnPlate + " sashimi on plate)", 2f);
         UpdateUI();
@@ -269,7 +360,6 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (heldPlateObject != null)
         {
-            // Save current count back to the object before releasing it
             SyncPlateToObject();
 
             heldPlateObject.transform.SetParent(null);
@@ -322,7 +412,6 @@ public class PlayerInteractionSystem : MonoBehaviour
             return;
         }
 
-        // Save current sashimi count to the plate object before putting it down
         SyncPlateToObject();
 
         plateAtStation = true;
@@ -346,6 +435,8 @@ public class PlayerInteractionSystem : MonoBehaviour
             stationPlateObject.SetActive(true);
             stationPlateObject.transform.position =
                 stationTransform.position + Vector3.up * 0.8f;
+
+            RebuildSashimiVisuals(stationPlateObject);
         }
 
         holdingPlate = false;
@@ -360,7 +451,6 @@ public class PlayerInteractionSystem : MonoBehaviour
     {
         holdingPlate = true;
 
-        // Read sashimi count from the plate object itself
         if (stationPlateObject != null)
             sashimiOnPlate = GetOrAddPlateData(stationPlateObject).sashimiCount;
         else
@@ -371,6 +461,7 @@ public class PlayerInteractionSystem : MonoBehaviour
             stationPlateObject.tag = "Plate";
             stationPlateObject.layer = PlateLayer;
             AttachPlateToHand(stationPlateObject);
+            RebuildSashimiVisuals(stationPlateObject);
         }
 
         plateAtStation = false;
@@ -407,9 +498,12 @@ public class PlayerInteractionSystem : MonoBehaviour
         sashimi--;
         sashimiAtStation++;
 
-        // Keep PlateData in sync as sashimi is loaded
         if (stationPlateObject != null)
-            GetOrAddPlateData(stationPlateObject).sashimiCount = sashimiAtStation;
+        {
+            PlateData pd = GetOrAddPlateData(stationPlateObject);
+            pd.sashimiCount = sashimiAtStation;
+            AddSashimiVisual(stationPlateObject);
+        }
 
         ShowMessage("Loaded sashimi. (" + sashimiAtStation + "/" + maxSashimiOnPlate + ")", 1.5f);
         UpdateUI();
@@ -427,6 +521,7 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (heldPlateObject != null)
         {
+            ClearSashimiVisuals(heldPlateObject);
             Destroy(heldPlateObject);
             heldPlateObject = null;
         }
@@ -456,6 +551,7 @@ public class PlayerInteractionSystem : MonoBehaviour
 
             if (heldPlateObject != null)
             {
+                ClearSashimiVisuals(heldPlateObject);
                 Destroy(heldPlateObject);
                 heldPlateObject = null;
             }

@@ -3926,6 +3926,15 @@ MonoBehaviour:
   sashimiOnPlate: 0
   maxSashimiOnPlate: 5
   plateHoldPoint: {fileID: 811344748}
+  sashimiPrefab: {fileID: 5451988989426228232, guid: 7dac0f43c5b0cd14986d414e1e3e02db, type: 3}
+  sashimiYRotRange: 15
+  sashimiXZRotRange: 15
+  sashimiSlotOffsets:
+  - {x: 0, y: 0.02, z: 0.05}
+  - {x: -0.14, y: 0.02, z: 0.05}
+  - {x: 0.14, y: 0.02, z: 0.05}
+  - {x: -0.28, y: 0.02, z: 0.05}
+  - {x: 0.28, y: 0.02, z: 0.05}
   pickupLayer: 6
   interactLayer: 7
   plateMask:
