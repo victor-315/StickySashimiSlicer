@@ -64,6 +64,14 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: -7635826562936255635, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: b32bb24c42a23174199b1b2c7f6b8287, type: 2}
+    - target: {fileID: -6400281290468069383, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: -1329017238929657882, guid: 2c4654b08d4123a4187317dec0be7292, type: 3}
     - target: {fileID: 919132149155446097, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
       propertyPath: m_Name
       value: platesashimi
@@ -75,6 +83,30 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
       propertyPath: m_TagString
       value: Untagged
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.125
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8164078558771037576, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
       propertyPath: m_Layer
@@ -93,7 +125,7 @@ PrefabInstance:
       addedObject: {fileID: 152588264083115083}
     - targetCorrespondingSourceObject: {fileID: 8164078558771037576, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5583993072679436746}
+      addedObject: {fileID: 5136522095991933863}
   m_SourcePrefab: {fileID: 100100000, guid: 6d645471c22414d45a9668948ea32b30, type: 3}
 --- !u!1 &3901402579886941393 stripped
 GameObject:
@@ -127,7 +159,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!65 &5583993072679436746
+--- !u!65 &5136522095991933863
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -146,5 +178,5 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.20355654, y: 0.07386938, z: 0.4095302}
-  m_Center: {x: -0.01100244, y: 0, z: -0.1377651}
+  m_Size: {x: 0.11520292, y: 0.1120563, z: 0.23251249}
+  m_Center: {x: 0, y: 0.05602815, z: 0.00033336878}
