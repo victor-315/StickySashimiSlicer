@@ -17,7 +17,9 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     [Header("Inventory")]
     public int sashimi = 0;
-    public int maxSashimi = 10;
+    public int maxSashimi = 50;
+    public int rice = 0;
+    // No rice cap
 
     [Header("Plating System")]
     public bool holdingPlate = false;
@@ -49,6 +51,11 @@ public class PlayerInteractionSystem : MonoBehaviour
     public int maxOrderAmount = 5;
     private int requiredAmount;
 
+    [Header("Timer Settings")]
+    public float orderTimeLimit = 60f;
+    private float orderTimer = 0f;
+    private bool timerRunning = false;
+
     [Header("Serve System")]
     public float interactDistance = 4f;
     public LayerMask interactMask;
@@ -78,8 +85,8 @@ public class PlayerInteractionSystem : MonoBehaviour
     public class PlateData : MonoBehaviour
     {
         public int sashimiCount = 0;
-        public GameObject[] sashimiVisuals  = new GameObject[5];
-        public Vector3[]    sashimiRotations = new Vector3[5];
+        public GameObject[] sashimiVisuals  = new GameObject[7];
+        public Vector3[]    sashimiRotations = new Vector3[7];
     }
 
     // ================= HELPERS =================
@@ -130,7 +137,6 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (slot < 0 || slot >= sashimiSlotOffsets.Length) return;
         if (pd.sashimiVisuals[slot] != null) return;
 
-        // Generate and store a full 3-axis rotation for this slot
         Vector3 rot = RandomSashimiRotation();
         pd.sashimiRotations[slot] = rot;
 
@@ -173,7 +179,6 @@ public class PlayerInteractionSystem : MonoBehaviour
 
             visual.transform.SetParent(plateObj.transform);
             visual.transform.localPosition = sashimiSlotOffsets[i];
-            // Reuse stored rotation so pieces don't shuffle on every pickup
             visual.transform.localRotation = Quaternion.Euler(pd.sashimiRotations[i]);
 
             pd.sashimiVisuals[i] = visual;
@@ -218,6 +223,14 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Q))
             DropHeldPlate();
+
+        if (timerRunning)
+        {
+            orderTimer -= Time.deltaTime;
+            UpdateUI();
+            if (orderTimer <= 0f)
+                OnOrderExpired();
+        }
     }
 
     // ================= PICKUP (sashimi / other items only) =================
@@ -248,7 +261,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         UpdateUI();
     }
 
-    // ================= LMB — ALL PLATE PICKUP / PUTDOWN / SUBMIT / TRASH =================
+    // ================= LMB — ALL PLATE PICKUP / PUTDOWN / SUBMIT / TRASH / RICE =================
 
     void TryPlateMouseInteract()
     {
@@ -304,6 +317,12 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (tag == "TrashStation")
         {
             TryTrashHeldPlate();
+            return;
+        }
+
+        if (tag == "RiceStation")
+        {
+            TryCollectRice();
             return;
         }
     }
@@ -489,6 +508,12 @@ public class PlayerInteractionSystem : MonoBehaviour
             return;
         }
 
+        if (rice <= 0)
+        {
+            ShowMessage("No rice! Grab rice before plating.", 2f);
+            return;
+        }
+
         if (sashimiAtStation >= maxSashimiOnPlate)
         {
             ShowMessage("Plate is full! (" + sashimiAtStation + "/" + maxSashimiOnPlate + ")", 2f);
@@ -496,6 +521,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         }
 
         sashimi--;
+        rice--;
         sashimiAtStation++;
 
         if (stationPlateObject != null)
@@ -533,6 +559,15 @@ public class PlayerInteractionSystem : MonoBehaviour
         UpdateUI();
     }
 
+    // ================= RICE STATION =================
+
+    void TryCollectRice()
+    {
+        rice++;
+        ShowMessage("Rice collected. (" + rice + " rice)", 1.5f);
+        UpdateUI();
+    }
+
     // ================= SUBMIT / SERVE =================
 
     void TrySubmitOrder()
@@ -546,6 +581,7 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (sashimiOnPlate == requiredAmount)
         {
+            timerRunning = false;
             sashimiOnPlate = 0;
             holdingPlate = false;
 
@@ -573,9 +609,19 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     // ================= ORDER =================
 
+    void OnOrderExpired()
+    {
+        timerRunning = false;
+        orderTimer = 0f;
+        ShowMessage("Time's up! Order failed.", 2.5f);
+        GenerateOrder();
+    }
+
     void GenerateOrder()
     {
         requiredAmount = Random.Range(minOrderAmount, maxOrderAmount + 1);
+        orderTimer = orderTimeLimit;
+        timerRunning = true;
         UpdateUI();
     }
 
@@ -645,10 +691,13 @@ public class PlayerInteractionSystem : MonoBehaviour
     void UpdateUI()
     {
         if (orderText != null)
-            orderText.text = "<b>Order:</b> " + requiredAmount + " sashimi";
+        {
+            int secs = Mathf.CeilToInt(orderTimer);
+            orderText.text = "<b>Order:</b> " + requiredAmount + " sashimi\n<b>Time:</b> " + secs + "s";
+        }
 
         if (inventoryText != null)
-            inventoryText.text = "Bag: " + sashimi + " / " + maxSashimi + " sashimi";
+            inventoryText.text = "Bag: " + sashimi + " / " + maxSashimi + " sashimi  |  Rice: " + rice;
 
         if (plateText != null)
         {
