@@ -13,6 +13,7 @@ TagManager:
   - PlatingStation
   - TrashStation
   - StationPlate
+  - RiceStation
   layers:
   - Default
   - TransparentFX
