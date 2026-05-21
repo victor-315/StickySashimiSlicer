@@ -104,6 +104,17 @@ public class PlayerInteractionSystem : MonoBehaviour
     private Coroutine messageRoutine;
 
     private int PlateLayer => Mathf.RoundToInt(Mathf.Log(plateMask.value, 2));
+    // Scans for the lowest set bit — safe even if multiple layers are ticked in interactMask
+    private int InteractLayer
+    {
+        get
+        {
+            int mask = interactMask.value;
+            for (int i = 0; i < 32; i++)
+                if ((mask & (1 << i)) != 0) return i;
+            return 0;
+        }
+    }
 
     // ================= PLATE MEMORY COMPONENT =================
 
@@ -230,7 +241,13 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     void Update()
     {
-        if (isGameOver) return;
+        // During game over, only allow LMB so the player can click Play Again
+        if (isGameOver)
+        {
+            if (Input.GetMouseButtonDown(0))
+                TryPlateMouseInteract();
+            return;
+        }
 
         FindClosestItem();
 
@@ -304,7 +321,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
-        if (!Physics.Raycast(ray, out hit, interactDistance, plateMask | interactMask))
+        if (!Physics.Raycast(ray, out hit, interactDistance, plateMask | interactMask | (1 << 9)))
             return;
 
         string tag = hit.collider.tag;
@@ -488,7 +505,7 @@ public class PlayerInteractionSystem : MonoBehaviour
             if (rb != null) rb.isKinematic = true;
 
             stationPlateObject.tag = "StationPlate";
-            stationPlateObject.layer = interactLayer;
+            stationPlateObject.layer = InteractLayer;
 
             Collider c = stationPlateObject.GetComponent<Collider>();
             if (c != null) c.enabled = true;
@@ -813,8 +830,8 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (spawnedPlayAgainStation.GetComponent<Collider>() == null)
             spawnedPlayAgainStation.AddComponent<BoxCollider>();
 
-        // Add it to the interactMask layer
-        spawnedPlayAgainStation.layer = interactLayer;
+        // Set layer to match interactMask exactly — derived the same way as InteractLayer property
+        spawnedPlayAgainStation.layer = 9;
 
         // Add a floating label above it
         // (canvas-based label requires more setup — we use a world-space TextMesh as a simple fallback)
