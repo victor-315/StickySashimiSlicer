@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 
@@ -52,9 +53,31 @@ public class PlayerInteractionSystem : MonoBehaviour
     private int requiredAmount;
 
     [Header("Timer Settings")]
-    public float orderTimeLimit = 60f;
+    public float initialOrderTimeLimit = 60f;
+    public float timerDecreasePerOrder = 3f;   // How many seconds to shave off each order
+    public float minOrderTimeLimit = 3f;        // Floor: never goes below this
+    private float orderTimeLimit;               // Current effective time limit
     private float orderTimer = 0f;
     private bool timerRunning = false;
+
+    [Header("Score Settings")]
+    public float baseScore = 1000f;             // Max score achievable for an order
+    private int currentScore = 0;
+    private int highScore = 0;
+    private int ordersCompleted = 0;
+
+    [Header("Game Over Settings")]
+    public float fadeDuration = 1.5f;           // Seconds for the black fade
+    public Image fadeOverlay;                   // Full-screen black UI Image (alpha 0 at start)
+    public TMP_Text gameOverText;               // "GAME OVER" label (hidden at start)
+    public TMP_Text gameOverScoreText;          // Final score label (hidden at start)
+    public TMP_Text gameOverHighScoreText;      // High score label on game over screen
+    public GameObject gameOverPanel;            // Parent panel that holds all game-over UI
+    public GameObject playAgainStationPrefab;   // Assign a simple cube/object in Inspector
+    public Vector3 playAgainStationOffset = new Vector3(2f, 0f, 2f); // Spawn offset from player
+
+    private bool isGameOver = false;
+    private GameObject spawnedPlayAgainStation;
 
     [Header("Serve System")]
     public float interactDistance = 4f;
@@ -69,6 +92,8 @@ public class PlayerInteractionSystem : MonoBehaviour
     public TMP_Text inventoryText;
     public TMP_Text resultText;
     public TMP_Text plateText;
+    public TMP_Text scoreText;      // Assign in Inspector — shows current score
+    public TMP_Text highScoreText;  // Assign in Inspector — shows high score
 
     private bool plateAtStation = false;
     private int sashimiAtStation = 0;
@@ -190,12 +215,23 @@ public class PlayerInteractionSystem : MonoBehaviour
     void Start()
     {
         cam = Camera.main;
+        orderTimeLimit = initialOrderTimeLimit;
+
+        // Ensure game over UI starts hidden
+        if (gameOverPanel != null)            gameOverPanel.SetActive(false);
+        if (gameOverText != null)             gameOverText.gameObject.SetActive(false);
+        if (gameOverScoreText != null)        gameOverScoreText.gameObject.SetActive(false);
+        if (gameOverHighScoreText != null)    gameOverHighScoreText.gameObject.SetActive(false);
+        if (fadeOverlay != null)              fadeOverlay.gameObject.SetActive(false);
+
         GenerateOrder();
         UpdateUI();
     }
 
     void Update()
     {
+        if (isGameOver) return;
+
         FindClosestItem();
 
         if (Input.GetKeyDown(KeyCode.E))
@@ -323,6 +359,12 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (tag == "RiceStation")
         {
             TryCollectRice();
+            return;
+        }
+
+        if (tag == "PlayAgainStation")
+        {
+            RestartGame();
             return;
         }
     }
@@ -582,6 +624,18 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (sashimiOnPlate == requiredAmount)
         {
             timerRunning = false;
+
+            // --- SCORING ---
+            // Score = baseScore * (timeRemaining / timeLimit), scaled to order size
+            // Bigger orders and faster completions = more points
+            float timeRatio = Mathf.Clamp01(orderTimer / orderTimeLimit);
+            int earned = Mathf.RoundToInt(baseScore * timeRatio * requiredAmount);
+            currentScore += earned;
+            ordersCompleted++;
+
+            if (currentScore > highScore)
+                highScore = currentScore;
+
             sashimiOnPlate = 0;
             holdingPlate = false;
 
@@ -592,7 +646,7 @@ public class PlayerInteractionSystem : MonoBehaviour
                 heldPlateObject = null;
             }
 
-            ShowMessage("Order Complete!", 2f);
+            ShowMessage("Order Complete! +" + earned + " pts", 2f);
             GenerateOrder();
         }
         else if (sashimiOnPlate < requiredAmount)
@@ -614,18 +668,205 @@ public class PlayerInteractionSystem : MonoBehaviour
         timerRunning = false;
         orderTimer = 0f;
         ShowMessage("Time's up! Order failed.", 2.5f);
-        GenerateOrder();
+        EndGame();
     }
 
     void GenerateOrder()
     {
         requiredAmount = Random.Range(minOrderAmount, maxOrderAmount + 1);
+
+        // Decrease time limit each order, clamped to the minimum
+        if (ordersCompleted > 0)
+            orderTimeLimit = Mathf.Max(minOrderTimeLimit, initialOrderTimeLimit - timerDecreasePerOrder * ordersCompleted);
+
         orderTimer = orderTimeLimit;
         timerRunning = true;
         UpdateUI();
     }
 
-    // ================= MESSAGE =================
+    // ================= END GAME / RESTART =================
+
+    void EndGame()
+    {
+        isGameOver = true;
+        timerRunning = false;
+
+        // Drop / clean up any held plate so it doesn't linger
+        if (holdingPlate && heldPlateObject != null)
+        {
+            ClearSashimiVisuals(heldPlateObject);
+            Destroy(heldPlateObject);
+            heldPlateObject = null;
+        }
+        holdingPlate = false;
+        sashimiOnPlate = 0;
+
+        // Clean up station plate too
+        if (stationPlateObject != null)
+        {
+            ClearSashimiVisuals(stationPlateObject);
+            Destroy(stationPlateObject);
+            stationPlateObject = null;
+        }
+        plateAtStation = false;
+
+        StartCoroutine(GameOverSequence());
+    }
+
+    IEnumerator GameOverSequence()
+    {
+        // --- 1. Fade screen to black ---
+        if (fadeOverlay != null)
+        {
+            fadeOverlay.gameObject.SetActive(true);
+            Color c = fadeOverlay.color;
+            c.a = 0f;
+            fadeOverlay.color = c;
+
+            float elapsed = 0f;
+            while (elapsed < fadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                c.a = Mathf.Clamp01(elapsed / fadeDuration);
+                fadeOverlay.color = c;
+                yield return null;
+            }
+            c.a = 1f;
+            fadeOverlay.color = c;
+        }
+        else
+        {
+            yield return new WaitForSeconds(fadeDuration);
+        }
+
+        // --- 2. Show Game Over UI ---
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+
+        if (gameOverText != null)
+        {
+            gameOverText.text = "GAME OVER";
+            gameOverText.color = Color.red;
+            gameOverText.gameObject.SetActive(true);
+        }
+
+        if (gameOverScoreText != null)
+        {
+            gameOverScoreText.text = "Score: " + currentScore;
+            gameOverScoreText.gameObject.SetActive(true);
+        }
+
+        if (gameOverHighScoreText != null)
+        {
+            gameOverHighScoreText.text = "Best: " + highScore;
+            gameOverHighScoreText.gameObject.SetActive(true);
+        }
+
+        // --- 3. Fade black back out so the world is visible again ---
+        if (fadeOverlay != null)
+        {
+            yield return new WaitForSeconds(0.4f); // brief hold on full black
+
+            Color c = fadeOverlay.color;
+            float elapsed = 0f;
+            float fadeOutDuration = fadeDuration * 0.6f;
+            while (elapsed < fadeOutDuration)
+            {
+                elapsed += Time.deltaTime;
+                c.a = Mathf.Clamp01(1f - elapsed / fadeOutDuration);
+                fadeOverlay.color = c;
+                yield return null;
+            }
+            c.a = 0f;
+            fadeOverlay.color = c;
+            fadeOverlay.gameObject.SetActive(false);
+        }
+
+        // --- 4. Spawn Play Again station in front of player ---
+        SpawnPlayAgainStation();
+    }
+
+    void SpawnPlayAgainStation()
+    {
+        if (spawnedPlayAgainStation != null)
+            Destroy(spawnedPlayAgainStation);
+
+        Vector3 spawnPos = transform.position + transform.TransformDirection(playAgainStationOffset);
+
+        if (playAgainStationPrefab != null)
+        {
+            spawnedPlayAgainStation = Instantiate(playAgainStationPrefab, spawnPos, Quaternion.identity);
+        }
+        else
+        {
+            // Fallback: create a simple cyan cube if no prefab is assigned
+            spawnedPlayAgainStation = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            spawnedPlayAgainStation.transform.position = spawnPos;
+            spawnedPlayAgainStation.transform.localScale = new Vector3(1f, 1.2f, 1f);
+            Renderer r = spawnedPlayAgainStation.GetComponent<Renderer>();
+            if (r != null) r.material.color = new Color(0f, 0.85f, 0.85f);
+        }
+
+        spawnedPlayAgainStation.tag = "PlayAgainStation";
+
+        // Make sure it has a collider so the raycast can hit it
+        if (spawnedPlayAgainStation.GetComponent<Collider>() == null)
+            spawnedPlayAgainStation.AddComponent<BoxCollider>();
+
+        // Add it to the interactMask layer
+        spawnedPlayAgainStation.layer = interactLayer;
+
+        // Add a floating label above it
+        // (canvas-based label requires more setup — we use a world-space TextMesh as a simple fallback)
+        GameObject labelObj = new GameObject("PlayAgainLabel");
+        labelObj.transform.SetParent(spawnedPlayAgainStation.transform);
+        labelObj.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+        TextMesh tm = labelObj.AddComponent<TextMesh>();
+        tm.text = "PLAY AGAIN\n[Click]";
+        tm.alignment = TextAlignment.Center;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.fontSize = 24;
+        tm.color = Color.white;
+        tm.characterSize = 0.08f;
+    }
+
+    void RestartGame()
+    {
+        // Hide game over UI
+        if (gameOverPanel != null)     gameOverPanel.SetActive(false);
+        if (gameOverText != null)      gameOverText.gameObject.SetActive(false);
+        if (gameOverScoreText != null) gameOverScoreText.gameObject.SetActive(false);
+        if (gameOverHighScoreText != null) gameOverHighScoreText.gameObject.SetActive(false);
+        if (fadeOverlay != null)       fadeOverlay.gameObject.SetActive(false);
+
+        // Destroy play again station
+        if (spawnedPlayAgainStation != null)
+        {
+            Destroy(spawnedPlayAgainStation);
+            spawnedPlayAgainStation = null;
+        }
+
+        // Reset all game state
+        sashimi = 0;
+        rice = 0;
+        holdingPlate = false;
+        sashimiOnPlate = 0;
+        heldPlateObject = null;
+        plateAtStation = false;
+        sashimiAtStation = 0;
+        stationPlateObject = null;
+        platingStationTransform = null;
+        currentScore = 0;
+        ordersCompleted = 0;
+        orderTimeLimit = initialOrderTimeLimit;
+        isGameOver = false;
+
+        RemoveHighlight();
+        currentItem = null;
+
+        GenerateOrder();
+        UpdateUI();
+    }
 
     void ShowMessage(string msg, float time = 2f)
     {
@@ -708,5 +949,11 @@ public class PlayerInteractionSystem : MonoBehaviour
             else
                 plateText.text = "<b>Plate:</b> None";
         }
+
+        if (scoreText != null)
+            scoreText.text = "<b>Score:</b> " + currentScore;
+
+        if (highScoreText != null)
+            highScoreText.text = "<b>Best:</b> " + highScore;
     }
 }
