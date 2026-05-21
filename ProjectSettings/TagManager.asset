@@ -14,6 +14,7 @@ TagManager:
   - TrashStation
   - StationPlate
   - RiceStation
+  - PlayAgainStation
   layers:
   - Default
   - TransparentFX
