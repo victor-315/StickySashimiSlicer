@@ -1,10 +1,11 @@
 using UnityEngine;
 
-public class platespawner : MonoBehaviour
+public class PlateSpawner : MonoBehaviour
 {
     [Header("Spawn Settings")]
     public GameObject prefabToSpawn;
-    public float spawnInterval = 5f;
+    public float spawnInterval = 3f;
+    public int maxPlates = 10;
 
     void Start()
     {
@@ -13,6 +14,9 @@ public class platespawner : MonoBehaviour
 
     void SpawnObject()
     {
+        if (GameObject.FindGameObjectsWithTag("Plate").Length >= maxPlates)
+            return;
+
         Instantiate(prefabToSpawn, transform.position, Quaternion.identity);
     }
 }
