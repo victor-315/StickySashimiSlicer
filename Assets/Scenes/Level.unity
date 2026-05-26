@@ -7616,7 +7616,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefabToSpawn: {fileID: 5261962876690833460, guid: 7d80479bcc3129c4daf6bea62d3ba577, type: 3}
-  spawnInterval: 10
+  spawnInterval: 2
   maxPlates: 10
 --- !u!1 &1993404674
 GameObject:
