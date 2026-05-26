@@ -7,6 +7,8 @@ public class PlateSpawner : MonoBehaviour
     public float spawnInterval = 3f;
     public int maxPlates = 10;
 
+    public static int currentPlateCount = 0;
+
     void Start()
     {
         InvokeRepeating(nameof(SpawnObject), 0f, spawnInterval);
@@ -14,9 +16,10 @@ public class PlateSpawner : MonoBehaviour
 
     void SpawnObject()
     {
-        if (GameObject.FindGameObjectsWithTag("Plate").Length >= maxPlates)
+        if (currentPlateCount >= maxPlates)
             return;
 
         Instantiate(prefabToSpawn, transform.position, Quaternion.identity);
+        currentPlateCount++;
     }
 }

@@ -6577,9 +6577,9 @@ MonoBehaviour:
     m_Bits: 1024
   minOrderAmount: 1
   maxOrderAmount: 7
-  initialOrderTimeLimit: 10
+  initialOrderTimeLimit: 60
   timerDecreasePerOrder: 3
-  minOrderTimeLimit: 3
+  minOrderTimeLimit: 7
   baseScore: 1000
   fadeDuration: 1.5
   fadeOverlay: {fileID: 0}

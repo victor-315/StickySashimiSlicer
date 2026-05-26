@@ -55,7 +55,7 @@ public class PlayerInteractionSystem : MonoBehaviour
     [Header("Timer Settings")]
     public float initialOrderTimeLimit = 60f;
     public float timerDecreasePerOrder = 3f;   // How many seconds to shave off each order
-    public float minOrderTimeLimit = 3f;        // Floor: never goes below this
+    public float minOrderTimeLimit = 5f;        // Floor: never goes below this
     private float orderTimeLimit;               // Current effective time limit
     private float orderTimer = 0f;
     private bool timerRunning = false;
@@ -123,6 +123,11 @@ public class PlayerInteractionSystem : MonoBehaviour
         public int sashimiCount = 0;
         public GameObject[] sashimiVisuals  = new GameObject[7];
         public Vector3[]    sashimiRotations = new Vector3[7];
+
+        void OnDestroy()
+        {
+            PlateSpawner.currentPlateCount--;
+        }
     }
 
     // ================= HELPERS =================
@@ -280,6 +285,8 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (timerRunning)
         {
             orderTimer -= Time.deltaTime;
+            // Clamp so it never goes below 0 in the UI
+            orderTimer = Mathf.Max(0f, orderTimer);
             UpdateUI();
             if (orderTimer <= 0f)
                 OnOrderExpired();
@@ -692,9 +699,8 @@ public class PlayerInteractionSystem : MonoBehaviour
     {
         requiredAmount = Random.Range(minOrderAmount, maxOrderAmount + 1);
 
-        // Decrease time limit each order, clamped to the minimum
-        if (ordersCompleted > 0)
-            orderTimeLimit = Mathf.Max(minOrderTimeLimit, initialOrderTimeLimit - timerDecreasePerOrder * ordersCompleted);
+        // Decrease time limit each order, always clamped to the minimum floor
+        orderTimeLimit = Mathf.Max(minOrderTimeLimit, initialOrderTimeLimit - timerDecreasePerOrder * ordersCompleted);
 
         orderTimer = orderTimeLimit;
         timerRunning = true;
@@ -834,7 +840,6 @@ public class PlayerInteractionSystem : MonoBehaviour
         spawnedPlayAgainStation.layer = 9;
 
         // Add a floating label above it
-        // (canvas-based label requires more setup — we use a world-space TextMesh as a simple fallback)
         GameObject labelObj = new GameObject("PlayAgainLabel");
         labelObj.transform.SetParent(spawnedPlayAgainStation.transform);
         labelObj.transform.localPosition = new Vector3(0f, 1.2f, 0f);
