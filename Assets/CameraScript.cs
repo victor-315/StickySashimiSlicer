@@ -2,15 +2,29 @@ using UnityEngine;
 
 public class CameraScript : MonoBehaviour
 {
+    [Header("References")]
     public Transform playerBody;
+    public Transform neckPivot;
 
     [Header("Settings")]
     public float sensitivity = 180f;
 
-    private float xRotation = 0f;
-    private float yRotation = 0f;
+    [Header("Sprint Lean (STRONG)")]
+    public float leanForward = 15f;   // 🔥 much stronger forward push
+    public float leanDown = -0.08f;     // stronger dip
+    public float leanSmooth = 12f;
 
-    private bool isLocked = false;
+    private float xRotation;
+    private float yRotation;
+
+    private bool isLocked;
+
+    private Vector3 defaultNeckPos;
+
+    void Start()
+    {
+        defaultNeckPos = neckPivot.localPosition;
+    }
 
     void Update()
     {
@@ -18,19 +32,33 @@ public class CameraScript : MonoBehaviour
 
         if (!isLocked) return;
 
-        // ✅ Instant input
         float mouseX = Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
 
-        // Update rotation values immediately
         yRotation += mouseX;
         xRotation -= mouseY;
 
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+        xRotation = Mathf.Clamp(xRotation, -85f, 65f);
 
-        // Apply instantly
         playerBody.rotation = Quaternion.Euler(0f, yRotation, 0f);
-        transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        neckPivot.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+
+        bool sprinting = Input.GetKey(KeyCode.LeftShift);
+
+        Vector3 targetPos = defaultNeckPos;
+
+        if (sprinting)
+        {
+            // 🔥 STRONG forward + slight downward lean
+            targetPos += neckPivot.forward * leanForward;
+            targetPos += new Vector3(0f, leanDown, 0f);
+        }
+
+        neckPivot.localPosition = Vector3.Lerp(
+            neckPivot.localPosition,
+            targetPos,
+            Time.deltaTime * leanSmooth
+        );
     }
 
     void HandleCursorLock()
