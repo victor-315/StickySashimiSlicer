@@ -226,6 +226,20 @@ public class PlayerInteractionSystem : MonoBehaviour
         }
     }
 
+    // ================= STATION STATE RECONCILIATION =================
+
+    // Call this before any station interaction to clear stale state caused by
+    // collider z-fighting between PlatingStation and the StationPlate on top of it.
+    void ReconcileStationState()
+    {
+        if (plateAtStation && stationPlateObject == null)
+        {
+            plateAtStation = false;
+            sashimiAtStation = 0;
+            platingStationTransform = null;
+        }
+    }
+
     // ==========================================================
 
     void Start()
@@ -325,6 +339,9 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     void TryPlateMouseInteract()
     {
+        // ── SAFETY: clear stale station state before every interaction ──
+        ReconcileStationState();
+
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
@@ -352,8 +369,18 @@ public class PlayerInteractionSystem : MonoBehaviour
 
         if (tag == "PlatingStation")
         {
+            // Plate is on the station and hands are free — pick it up
             if (plateAtStation && !holdingPlate)
             {
+                PickUpPlateFromStation();
+                return;
+            }
+
+            // stationPlateObject exists but plateAtStation flag drifted — re-sync and pick up
+            if (stationPlateObject != null && !holdingPlate)
+            {
+                plateAtStation = true;
+                sashimiAtStation = GetOrAddPlateData(stationPlateObject).sashimiCount;
                 PickUpPlateFromStation();
                 return;
             }
@@ -475,6 +502,9 @@ public class PlayerInteractionSystem : MonoBehaviour
 
     void TryInteractWithStation()
     {
+        // ── SAFETY: clear stale station state before every interaction ──
+        ReconcileStationState();
+
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
 
