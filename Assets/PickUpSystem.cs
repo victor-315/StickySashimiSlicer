@@ -956,7 +956,7 @@ public class PlayerInteractionSystem : MonoBehaviour
         if (orderText != null)
         {
             int secs = Mathf.CeilToInt(orderTimer);
-            orderText.text = "<b>Order:</b> " + requiredAmount + " sashimi\n<b>Time:</b> " + secs + "s";
+            orderText.text = "<b>Order:</b> " + requiredAmount + " sashimi\n<b>Time:</b> " + secs;
         }
 
         if (inventoryText != null)
