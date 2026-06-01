@@ -4676,8 +4676,8 @@ MonoBehaviour:
   playerBody: {fileID: 1634295165}
   neckPivot: {fileID: 1115700814}
   sensitivity: 147
-  leanForward: 0.08
-  leanDown: -0.05
+  leanForward: 0
+  leanDown: 0
   leanSmooth: 8
 --- !u!1001 &1153710440
 PrefabInstance:
